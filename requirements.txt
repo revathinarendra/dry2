@@ -32,4 +32,4 @@ google-generativeai
 PyPDF2
 openai
 chromadb
-flask
+
