@@ -5,25 +5,29 @@ from .serializers import JobSerializer, ProfileSerializer
 from .models import Job,Profile
 from rest_framework.generics import RetrieveAPIView
 from .functions import  extract_text_from_docx, extract_text_from_pdf, find_matching_profiles, generate_uuid, save_metadata_to_json
-
+from utils.encryption import encrypt_id,decrypt_id
 
 class JobCreateView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = JobSerializer(data=request.data)
         if serializer.is_valid():
             job = serializer.save()
+            encrypted_id = encrypt_id(job.id)
             return Response({
                 "message": "Job created successfully",
-                "job": JobSerializer(job).data
+                "job": JobSerializer(job).data,
+                "encrypted_id": encrypted_id
             }, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class JobUpdateView(APIView):
-    def put(self, request, pk, *args, **kwargs):
+    def put(self, request, encrypted_id, *args, **kwargs):
         try:
+            # Decrypt the ID
+            job_id = decrypt_id(encrypted_id)
             # Get the Job instance by primary key (pk)
-            job = Job.objects.get(pk=pk)
+            job = Job.objects.get(id=job_id)
         except Job.DoesNotExist:
             return Response({"message": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
 
@@ -42,10 +46,11 @@ class JobDetailView(RetrieveAPIView):
     queryset = Job.objects.all()
     serializer_class = JobSerializer
 
-    def get(self, request, *args, **kwargs):
+    def get(self, request,encrypted_id,  *args, **kwargs):
         try:
-            job_id = kwargs.get('id')  # Extract the ID from the URL
-            job = self.get_queryset().get(id=job_id)  # Retrieve the Job object
+            # Decrypt the ID
+            job_id = decrypt_id(encrypted_id)
+            job = self.get_queryset().get(id=job_id)
             serializer = self.get_serializer(job)  # Serialize the object
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Job.DoesNotExist:
@@ -74,6 +79,7 @@ class UploadResumeView(APIView):
 
         # Generate UUID for the resume
         resume_id = generate_uuid()
+        encrypted_resume_id = encrypt_id(resume_id)
 
         # Extract fields from the resume text
         extracted_data = find_matching_profiles(resume_text)
@@ -88,16 +94,25 @@ class UploadResumeView(APIView):
             # Save metadata to a JSON file
             save_metadata_to_json(extracted_data)
 
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            return Response({
+                "message": "Resume uploaded successfully",
+                "encrypted_resume_id": encrypted_resume_id,
+                "profile_data": serializer.data
+            }, status=status.HTTP_201_CREATED)
+
+            
         else:
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, *args, **kwargs):
-        resume_id = kwargs.get('resume_id', None)
+        encrypted_resume_id = kwargs.get('encrypted_resume_id', None)
+        #resume_id = kwargs.get('resume_id', None)
 
-        if resume_id:
+        if encrypted_resume_id:
+            # Decrypt the resume_id
             # Retrieve a specific profile by resume_id
             try:
+                resume_id = decrypt_id(encrypted_resume_id)
                 profile = Profile.objects.get(resume_id=resume_id)
                 serializer = ProfileSerializer(profile)
                 return Response(serializer.data, status=status.HTTP_200_OK)

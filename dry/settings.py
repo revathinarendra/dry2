@@ -17,13 +17,13 @@ from dotenv import load_dotenv
 import os
 from cryptography.fernet import Fernet
 
-ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
-fernet = Fernet(ENCRYPTION_KEY)
+
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv()
-
+ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
+fernet = Fernet(ENCRYPTION_KEY)
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 

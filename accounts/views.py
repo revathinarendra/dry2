@@ -6,6 +6,12 @@ from .serializers import AccountSerializer, LoginSerializer,UserProfileSerialize
 from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from rest_framework import status
+from .models import Account
+from .serializers import UserProfileSerializer
+from utils.encryption import encrypt_id, decrypt_id
 
 
 @api_view(['POST'])
@@ -36,13 +42,40 @@ def user_profile(request):
     if request.user.is_authenticated:
         try:
             # Retrieve the user's profile using the logged-in user
-            profile = Account.objects.get(user=request.user)
-            serializer  = UserProfileSerializer(profile)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            profile = Account.objects.get(id=request.user.id)
+            serializer = UserProfileSerializer(profile)
+
+            # Encrypt the user ID before sending it to the frontend
+            data = serializer.data
+            data['encrypted_id'] = encrypt_id(profile.id)
+
+            return Response(data, status=status.HTTP_200_OK)
         except Account.DoesNotExist:
             return Response({'error': 'User profile not found'}, status=status.HTTP_404_NOT_FOUND)
     else:
         return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+@api_view(['POST'])
+def update_user_profile(request):
+    if request.user.is_authenticated:
+        try:
+            # Decrypt the encrypted ID received from the frontend
+            encrypted_id = request.data.get('encrypted_id')
+            user_id = decrypt_id(encrypted_id)
+
+            # Update the user's profile
+            profile = Account.objects.get(id=user_id)
+            serializer = UserProfileSerializer(profile, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Account.DoesNotExist:
+            return Response({'error': 'User profile not found'}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
+    else:
+        return Response({'error': 'Authentication required'}, status=status.HTTP_401_UNAUTHORIZED)
+
 @api_view(['POST'])
 def login_view(request):
     serializer = LoginSerializer(data=request.data)
