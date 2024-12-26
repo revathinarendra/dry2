@@ -14,6 +14,11 @@ from pathlib import Path
 import os
 from datetime import timedelta
 from dotenv import load_dotenv
+import os
+from cryptography.fernet import Fernet
+
+ENCRYPTION_KEY = os.getenv('ENCRYPTION_KEY')
+fernet = Fernet(ENCRYPTION_KEY)
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent

@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Job
+from .models import Job,Profile
 from .functions import generate_job_description
 
 class JobSerializer(serializers.ModelSerializer):
@@ -34,3 +34,10 @@ class JobSerializer(serializers.ModelSerializer):
 
         instance.save()
         return instance
+
+
+class ProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Profile
+        fields = ['resume_id', 'name', 'mobile', 'email', 'role', 'resume_text']
+        read_only_fields = ['resume_id']  # UUID is generated automatically

@@ -3,5 +3,6 @@ dry/.env
 db.sqlite3
 env-dry
 data.py
+key.py
 
-
+.vercel

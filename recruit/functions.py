@@ -1,8 +1,11 @@
+import uuid
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 import json
 import google.generativeai as genai
 import time
 import os
+from rest_framework.response import Response
+from rest_framework import status
 import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 from werkzeug.utils import secure_filename
@@ -10,11 +13,15 @@ import sqlite3
 from django.conf import settings
 import docx
 import PyPDF2
+from PyPDF2 import PdfReader
+import re
+
+from recruit.serializers import ProfileSerializer
 
 app = Flask(__name__)
 # Configure Google Generative AI API
 
-genai.configure(settings.GEMINI_KEY)# fetch this from .env line 16,20,21,gemini_key
+genai.configure(settings.GEMINI_KEY)
 gemini_llm = genai.GenerativeModel("gemini-1.5-flash")
 
 openai_ef = embedding_functions.OpenAIEmbeddingFunction(
@@ -147,6 +154,33 @@ def call_gemini_with_file(prompt, file):
         return response.text
     except Exception as e:
         return f"Error calling Gemini LLM: {e}"
+# for resume field extractions
+def generate_uuid():
+    """Generate a unique UUID."""
+    return str(uuid.uuid4())
+
+
+def extract_text_from_pdf(file):
+    """Extract text from a PDF file."""
+    reader = PdfReader(file)
+    text = ""
+    for page in reader.pages:
+        text += page.extract_text()
+    return text
+
+
+def extract_text_from_docx(file):
+    """Extract text from a DOCX file."""
+    doc = docx.Document(file)
+    return "\n".join([paragraph.text for paragraph in doc.paragraphs])
+
+
+def save_metadata_to_json(data, file_path='metadata.json'):
+    """Save extracted data to a JSON file."""
+    with open(file_path, 'w') as json_file:
+        json.dump(data, json_file, indent=4)
+
+
 
 def read_resume(resume_file):
     if resume_file.filename.lower().endswith('.pdf'):
@@ -161,6 +195,9 @@ def read_resume(resume_file):
         return resume_text
     else:
         return None
+
+
+
 # Fetch jobs from SQLite database
 def fetch_jobs():
     conn = sqlite3.connect("jobs.db")
@@ -201,24 +238,33 @@ def find_matching_profiles():
                         "Role": extract_field(resume_text, "What is the candidate's latest role?"),
                         "Text": resume_text
                     }
+                    # Use ProfileSerializer to validate and save data
+                    serializer = ProfileSerializer(data=extracted_fields)
+                    if serializer.is_valid():
+                        serializer.save()  # Save to database
+                        profiles.append(serializer.data)  # Append the saved data
+                    else:
+                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({"message": "Upload successful", "profiles": profiles}, status=status.HTTP_201_CREATED)
 
                     # Add to ChromaDB
-                    time.sleep(2)
-                    collection.add(
-                        documents=[extracted_fields["Text"]],
-                        metadatas=[{
-                            "Name": extracted_fields["Name"],
-                            "Mobile": extracted_fields["Mobile"],
-                            "Email": extracted_fields["Email"],
-                            "Role": extracted_fields["Role"],
-                            "Resume_text": extracted_fields["Text"]
-                        }],
-                        ids=[str(count + idx)]
-                    )
+            #         time.sleep(2)
+            #         collection.add(
+            #             documents=[extracted_fields["Text"]],
+            #             metadatas=[{
+            #                 "Name": extracted_fields["Name"],
+            #                 "Mobile": extracted_fields["Mobile"],
+            #                 "Email": extracted_fields["Email"],
+            #                 "Role": extracted_fields["Role"],
+            #                 "Resume_text": extracted_fields["Text"]
+            #             }],
+            #             ids=[str(count + idx)]
+            #         )
 
-                    profiles.append(extracted_fields)
+            #         profiles.append(extracted_fields)
 
-            return jsonify({"message": "Upload successful", "profiles": profiles})
+            # return jsonify({"message": "Upload successful", "profiles": profiles})
 
         elif option == "find_profiles":
             job_id = request.form.get("job_id")

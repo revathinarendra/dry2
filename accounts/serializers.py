@@ -1,5 +1,6 @@
 from rest_framework import serializers
 from .models import Account
+from utils.encryption import encrypt_id, decrypt_id
 
 
 class AccountSerializer(serializers.ModelSerializer):
@@ -7,6 +8,7 @@ class AccountSerializer(serializers.ModelSerializer):
         model = Account
         fields = ["id", "email", "username","company_name", "date_joined", "last_login", "is_admin", "is_staff", "is_active", "is_superadmin"]
         read_only_fields = ["date_joined", "last_login"]
+
 
 
 class UserProfileSerializer(serializers.ModelSerializer):

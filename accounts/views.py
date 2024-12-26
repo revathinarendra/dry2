@@ -12,6 +12,7 @@ from django.contrib.auth import authenticate
 def register(request):
     data = request.data
     user_serializer = AccountSerializer(data=data)
+    print(user_serializer.data)
 
     if user_serializer.is_valid():
         # Check if user with the same email already exists
