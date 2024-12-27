@@ -79,7 +79,7 @@ class UploadResumeView(APIView):
 
         # Generate UUID for the resume
         resume_id = generate_uuid()
-        encrypted_resume_id = encrypt_id(resume_id)
+        #encrypted_resume_id = encrypt_id(resume_id)
 
         # Extract fields from the resume text
         extracted_data = find_matching_profiles(resume_text)
@@ -96,7 +96,7 @@ class UploadResumeView(APIView):
 
             return Response({
                 "message": "Resume uploaded successfully",
-                "encrypted_resume_id": encrypted_resume_id,
+                #"encrypted_resume_id": encrypted_resume_id,
                 "profile_data": serializer.data
             }, status=status.HTTP_201_CREATED)
 
@@ -105,14 +105,14 @@ class UploadResumeView(APIView):
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request, *args, **kwargs):
-        encrypted_resume_id = kwargs.get('encrypted_resume_id', None)
-        #resume_id = kwargs.get('resume_id', None)
+        #encrypted_resume_id = kwargs.get('encrypted_resume_id', None)
+        resume_id = kwargs.get('resume_id', None)
 
-        if encrypted_resume_id:
+        if resume_id:
             # Decrypt the resume_id
             # Retrieve a specific profile by resume_id
             try:
-                resume_id = decrypt_id(encrypted_resume_id)
+                #resume_id = decrypt_id(encrypted_resume_id)
                 profile = Profile.objects.get(resume_id=resume_id)
                 serializer = ProfileSerializer(profile)
                 return Response(serializer.data, status=status.HTTP_200_OK)
