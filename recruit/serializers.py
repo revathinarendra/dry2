@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from .models import Job,Profile
 from .functions import generate_job_description
+import asyncio
 
 class JobSerializer(serializers.ModelSerializer):
     job_description = serializers.CharField(allow_blank=True, required=False)
@@ -9,6 +10,11 @@ class JobSerializer(serializers.ModelSerializer):
     class Meta:
         model = Job
         fields = ['company_name', 'role', 'skills', 'project_experience', 'other_details', 'job_description', 'evaluation_criteria']
+
+    async def async_generate_details(self, role, skills, project_experience, other_details):
+        # Simulate an async job description generation
+        await asyncio.sleep(10)  
+        return "Generated Job Description", "Generated Evaluation Criteria"
 
     def update(self, instance, validated_data):
         # Extract the fields from validated data
@@ -22,7 +28,11 @@ class JobSerializer(serializers.ModelSerializer):
         evaluation_criteria = validated_data.get('evaluation_criteria', instance.evaluation_criteria)
 
         if not job_description or not evaluation_criteria:
-            job_description, evaluation_criteria = generate_job_description(role, skills, project_experience, other_details)
+            loop = asyncio.get_event_loop()
+            job_description, evaluation_criteria = loop.run_until_complete(
+                self.async_generate_details(role, skills, project_experience, other_details)
+            )
+            # job_description, evaluation_criteria = generate_job_description(role, skills, project_experience, other_details)
 
         # Update the instance with the new data
         instance.role = role
