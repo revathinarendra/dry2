@@ -1,3 +1,4 @@
+import datetime
 import uuid
 from flask import Flask, render_template, request, jsonify, redirect, url_for
 import json
@@ -15,6 +16,9 @@ import docx
 import PyPDF2
 from PyPDF2 import PdfReader
 import re
+import boto3
+
+
 
 from recruit.serializers import ProfileSerializer
 
@@ -428,3 +432,67 @@ def read_transcription(file):
 
 if __name__ == "__main__":
     app.run(debug=True)
+
+# s3 storage functions
+
+def upload_resume_to_cloud(file, file_name, resume_id):
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_REGION
+    )
+
+    # Generate a unique file name with the resume_id
+    stored_file_name = f"{resume_id}-{file_name}"
+
+    # Upload the file to S3
+    s3.upload_fileobj(
+        file,
+        settings.AWS_STORAGE_BUCKET_NAME,
+        stored_file_name,
+        ExtraArgs={'ContentType': file.content_type}
+    )
+
+    return stored_file_name
+
+
+def fetch_resume_from_cloud(resume_id):
+    s3 = boto3.client(
+        's3',
+        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
+        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
+        region_name=settings.AWS_REGION
+    )
+
+    # Construct the file name based on the resume_id
+    stored_file_name = f"{resume_id}"  # Since resume_id is a UUID, we don't need the timestamp part
+
+    try:
+        # Fetch the file from S3
+        file_obj = s3.get_object(
+            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+            Key=stored_file_name
+        )
+
+        # Get the file content and the content type
+        file_content = file_obj['Body'].read()
+        content_type = file_obj['ContentType']
+
+        # Determine file type based on content type or file extension
+        if content_type == 'application/pdf' or stored_file_name.lower().endswith('.pdf'):
+            # If PDF, extract text using PyPDF2
+            resume_text = extract_text_from_pdf(file_content)
+        elif content_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or stored_file_name.lower().endswith('.docx'):
+            # If DOCX, extract text using python-docx
+            resume_text = extract_text_from_docx(file_content)
+        elif content_type == 'text/plain' or stored_file_name.lower().endswith('.txt'):
+            # If TXT, just decode the content as text
+            resume_text = file_content.decode('utf-8')
+        else:
+            raise Exception(f"Unsupported file type: {content_type}")
+
+        return resume_text
+
+    except Exception as e:
+        raise Exception(f"Error fetching resume from cloud: {str(e)}")

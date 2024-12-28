@@ -36,3 +36,4 @@ openai
 chromadb
 flask
 cryptography
+boto3
