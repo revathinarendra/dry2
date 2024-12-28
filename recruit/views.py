@@ -168,27 +168,47 @@ class UploadResumeView(APIView):
 
 
 class FetchResumeView(APIView):
-    def get(self, request, *args, **kwargs):
-        # Get the resume_id from the query parameters
-        resume_id = request.query_params.get('resume_id')
-
-        if not resume_id:
-            return Response({"error": "Resume ID is required"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Check if the resume_id exists in the Profile model
+    def get(self, request, profile_id, *args, **kwargs):
         try:
-            profile = Profile.objects.get(resume_id=resume_id)
+            # Decrypt the profile ID
+            decrypted_profile_id = decrypt_id(profile_id)
+        except Exception as e:
+            return Response({"error": "Invalid or malformed profile ID"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch the profile using the decrypted profile ID
+        try:
+            profile = Profile.objects.get(id=decrypted_profile_id)
         except Profile.DoesNotExist:
-            return Response({"error": "Resume not found for the provided resume ID"}, 
+            return Response({"error": "Profile not found"}, 
                             status=status.HTTP_404_NOT_FOUND)
 
-        
-        # fetch resume from s3 bucket
+        # Fetch the resume content from the cloud
         resume_content = fetch_resume_from_cloud(profile.resume_id)
 
         return Response({
-            "resume_id": resume_id,
+            "resume_id": profile.resume_id,
             "name": profile.name,
             "role": profile.role,
             "resume_text": resume_content  
         }, status=status.HTTP_200_OK)
+
+class ProfileDetailView(APIView):
+    def get(self, request, profile_id, *args, **kwargs):
+        try:
+            # Decrypt the profile ID
+            decrypted_profile_id = decrypt_id(profile_id)
+        except Exception as e:
+            return Response({"error": "Invalid or malformed profile ID"}, 
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        # Fetch the profile using the decrypted profile ID
+        try:
+            profile = Profile.objects.get(id=decrypted_profile_id)
+        except Profile.DoesNotExist:
+            return Response({"error": "Profile not found"}, 
+                            status=status.HTTP_404_NOT_FOUND)
+
+        # Serialize the profile data
+        serializer = ProfileSerializer(profile)
+        return Response(serializer.data, status=status.HTTP_200_OK)
