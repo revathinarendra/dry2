@@ -117,6 +117,8 @@ DATABASES = {
 GEMINI_KEY = os.getenv('GEMINI_KEY')
 API_KEY = os.getenv('API_KEY')
 MODEL_NAME = os.getenv('MODEL_NAME')
+CHROMA_API_TOKEN = os.getenv('CHROMA_API_TOKEN')
+HOST = os.getenv('HOST')
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 

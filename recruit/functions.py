@@ -34,9 +34,14 @@ openai_ef = embedding_functions.OpenAIEmbeddingFunction(
             )
 
 # Initialize ChromaDB client
-client = chromadb.HttpClient(host="http://127.0.0.1:8000")# env 
+ 
+headers = {
+  'ChromaApiToken': settings.CHROMA_API_TOKEN
+}
+client = chromadb.HttpClient(host=settings.HOST,headers=headers)
 
-client = chromadb.HttpClient(host="http://127.0.0.1:8000")
+
+
 collection = client.get_or_create_collection(name="profiles11",)
 
 # Configure upload folder and allowed extensions
@@ -242,33 +247,24 @@ def find_matching_profiles():
                         "Role": extract_field(resume_text, "What is the candidate's latest role?"),
                         "Text": resume_text
                     }
-                    # Use ProfileSerializer to validate and save data
-                    serializer = ProfileSerializer(data=extracted_fields)
-                    if serializer.is_valid():
-                        serializer.save()  # Save to database
-                        profiles.append(serializer.data)  # Append the saved data
-                    else:
-                        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            
+                    #Add to ChromaDB
+                    time.sleep(2)
+                    collection.add(
+                        documents=[extracted_fields["Text"]],
+                        metadatas=[{
+                            "Name": extracted_fields["Name"],
+                            "Mobile": extracted_fields["Mobile"],
+                            "Email": extracted_fields["Email"],
+                            "Role": extracted_fields["Role"],
+                            "Resume_text": extracted_fields["Text"]
+                        }],
+                        ids=[str(count + idx)]
+                    )
 
-            return Response({"message": "Upload successful", "profiles": profiles}, status=status.HTTP_201_CREATED)
+                    profiles.append(extracted_fields)
 
-                    # Add to ChromaDB
-            #         time.sleep(2)
-            #         collection.add(
-            #             documents=[extracted_fields["Text"]],
-            #             metadatas=[{
-            #                 "Name": extracted_fields["Name"],
-            #                 "Mobile": extracted_fields["Mobile"],
-            #                 "Email": extracted_fields["Email"],
-            #                 "Role": extracted_fields["Role"],
-            #                 "Resume_text": extracted_fields["Text"]
-            #             }],
-            #             ids=[str(count + idx)]
-            #         )
-
-            #         profiles.append(extracted_fields)
-
-            # return jsonify({"message": "Upload successful", "profiles": profiles})
+            return jsonify({"message": "Upload successful", "profiles": profiles})
 
         elif option == "find_profiles":
             job_id = request.form.get("job_id")
