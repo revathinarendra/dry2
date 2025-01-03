@@ -103,16 +103,18 @@ WSGI_APPLICATION = 'dry.wsgi.application'
 #     }
 # }
 
+
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("SUPBASE_DB_NAME"),
-        "USER": os.environ.get("SUPBASE_DB_USER"),
-        "PASSWORD": os.environ.get("SUPBASE_DB_PASSWORD"),
-        "HOST": os.environ.get("SUPBASE_DB_HOST"),
-        "PORT": os.environ.get("SUPBASE_DB_PORT"),
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('RDS_DB_NAME'),  # Database name
+        'USER': os.getenv('RDS_USERNAME'),  # Username
+        'PASSWORD': os.getenv('RDS_PASSWORD'),  # Password
+        'HOST': os.getenv('RDS_HOST'),  # Hostname (e.g., your RDS endpoint)
+        'PORT': os.getenv('RDS_PORT', '5432'),  # Port (default is 5432 for PostgreSQL)
     }
 }
+
 
 GEMINI_KEY = os.getenv('GEMINI_KEY')
 API_KEY = os.getenv('API_KEY')

@@ -1,12 +1,10 @@
-import datetime
+
 import uuid
-from flask import Flask, render_template, request, jsonify, redirect, url_for
+from flask import Flask, render_template, request, jsonify
 import json
 import google.generativeai as genai
 import time
 import os
-from rest_framework.response import Response
-from rest_framework import status
 import chromadb
 import chromadb.utils.embedding_functions as embedding_functions
 from werkzeug.utils import secure_filename
@@ -15,12 +13,11 @@ from django.conf import settings
 import docx
 import PyPDF2
 from PyPDF2 import PdfReader
-import re
 import boto3
 
 
 
-from recruit.serializers import ProfileSerializer
+#from recruit.serializers import ProfileSerializer
 
 app = Flask(__name__)
 # Configure Google Generative AI API
