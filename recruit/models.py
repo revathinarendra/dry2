@@ -15,6 +15,7 @@ class Job(models.Model):
     other_details = models.TextField()
     job_description = models.TextField()
     evaluation_criteria = models.TextField()
+    location = models.CharField(max_length=255)
 
     def __str__(self):
         return self.pk

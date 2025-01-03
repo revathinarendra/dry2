@@ -9,7 +9,7 @@ class JobSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Job
-        fields = ['company_name', 'role', 'skills', 'project_experience', 'other_details', 'job_description', 'evaluation_criteria']
+        fields = ['company_name', 'role', 'skills', 'project_experience', 'other_details', 'job_description', 'evaluation_criteria','location']
 
     async def async_generate_details(self, role, skills, project_experience, other_details):
         # Simulate an async job description generation
@@ -32,8 +32,7 @@ class JobSerializer(serializers.ModelSerializer):
             job_description, evaluation_criteria = loop.run_until_complete(
                 self.async_generate_details(role, skills, project_experience, other_details)
             )
-            # job_description, evaluation_criteria = generate_job_description(role, skills, project_experience, other_details)
-
+            
         # Update the instance with the new data
         instance.role = role
         instance.skills = skills
