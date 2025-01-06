@@ -27,13 +27,13 @@ class MyAccountManager(BaseUserManager):
         user.save(using=self._db)
         return user
 
-    def create_superuser(self,  email, username, password=None, **extra_fields):
+    def create_superuser(self,  email, username, company_name,password=None, **extra_fields):
         extra_fields.setdefault('is_admin', True)
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_active', True)
         extra_fields.setdefault('is_superadmin', True)
 
-        return self.create_user( email, username, password, **extra_fields)
+        return self.create_user( email, username,company_name, password, **extra_fields)
 
 
 class Account(AbstractBaseUser):

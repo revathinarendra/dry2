@@ -111,11 +111,24 @@ DATABASES = {
         'USER': os.getenv('RDS_USERNAME'),  # Username
         'PASSWORD': os.getenv('RDS_PASSWORD'),  # Password
         'HOST': os.getenv('RDS_HOST'),  # Hostname (e.g., your RDS endpoint)
-        'PORT': os.getenv('RDS_PORT', '5432'),  # Port (default is 5432 for PostgreSQL)
+        'PORT': os.getenv('RDS_PORT', '5432'), 
+        'OPTIONS' :{
+                  'connect_timeout': 60,  # Increase timeout to 10 seconds
+                 } # Port (default is 5432 for PostgreSQL)
     }
 }
 
 
+# DATABASES = {
+#     "default": {
+#         "ENGINE": "django.db.backends.postgresql",
+#         "NAME": os.environ.get("SUPBASE_DB_NAME"),
+#         "USER": os.environ.get("SUPBASE_DB_USER"),
+#         "PASSWORD": os.environ.get("SUPBASE_DB_PASSWORD"),
+#         "HOST": os.environ.get("SUPBASE_DB_HOST"),
+#         "PORT": os.environ.get("SUPBASE_DB_PORT"),
+#     }
+#}
 GEMINI_KEY = os.getenv('GEMINI_KEY')
 API_KEY = os.getenv('API_KEY')
 MODEL_NAME = os.getenv('MODEL_NAME')

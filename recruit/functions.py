@@ -15,14 +15,10 @@ import PyPDF2
 from PyPDF2 import PdfReader
 import boto3
 
-
-
-#from recruit.serializers import ProfileSerializer
-
 app = Flask(__name__)
 # Configure Google Generative AI API
-
-genai.configure(settings.GEMINI_KEY)
+os.environ["GEMINI_KEY"] = settings.GEMINI_KEY
+#genai.configure(settings.GEMINI_KEY)
 gemini_llm = genai.GenerativeModel("gemini-1.5-flash")
 
 openai_ef = embedding_functions.OpenAIEmbeddingFunction(
@@ -68,7 +64,7 @@ def generate_job_description(details):
     """
     return call_gemini(prompt)
 
-@app.route('/generate-job-description', methods=['GET', 'POST'])
+# @app.route('/generate-job-description', methods=['GET', 'POST'])
 def generate_job_description():
     if request.method == 'POST':
         data = request.json
@@ -81,20 +77,23 @@ def generate_job_description():
         try:
             # Generate Job Description
             job_description = generate_job_description_helper(data)
+            print("Generated Job Description:", job_description)
+
 
             # Generate Evaluation Criteria
             evaluation_criteria = generate_evaluation_criteria(data, job_description)
 
-            # Store data in SQLite database
-            job_id = store_in_db(
-                company_name=data['company_name'],
-                role=data['role'],
-                job_description=job_description,
-                evaluation_criteria=evaluation_criteria
-            )
+            # # Store data in SQLite database
+            # job_id= (
+            #     company_name=data['company_name'],
+            #     role=data['role'],
+            #     job_description=job_description,
+            #     evaluation_criteria=evaluation_criteria
+            # )
+            # job.save()
 
             return jsonify({
-                "job_id": job_id,
+                #"job": job,
                 "job_description": job_description,
                 "evaluation_criteria": evaluation_criteria
             })
@@ -104,17 +103,17 @@ def generate_job_description():
     #return render_template('generate_job_description.html')
 
 # Helper function to store job data in the database
-def store_in_db(company_name, role, job_description, evaluation_criteria):
-    conn = sqlite3.connect("jobs.db")
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO job_descriptions (company_name, role, job_description, evaluation_criteria)
-        VALUES (?, ?, ?, ?)
-    """, (company_name, role, job_description, evaluation_criteria))
-    conn.commit()
-    job_id = cursor.lastrowid  # Get the ID of the newly inserted row
-    conn.close()
-    return job_id
+# def store_in_db(company_name, role, job_description, evaluation_criteria):
+#     conn = sqlite3.connect("jobs.db")
+#     cursor = conn.cursor()
+#     cursor.execute("""
+#         INSERT INTO job_descriptions (company_name, role, job_description, evaluation_criteria)
+#         VALUES (?, ?, ?, ?)
+#     """, (company_name, role, job_description, evaluation_criteria))
+#     conn.commit()
+#     job_id = cursor.lastrowid  # Get the ID of the newly inserted row
+#     conn.close()
+#     return job_id
 
 
 # Helper function to generate evaluation criteria
@@ -164,28 +163,6 @@ def call_gemini_with_file(prompt, file):
 def generate_uuid():
     """Generate a unique UUID."""
     return str(uuid.uuid4())
-
-
-def extract_text_from_pdf(file):
-    """Extract text from a PDF file."""
-    reader = PdfReader(file)
-    text = ""
-    for page in reader.pages:
-        text += page.extract_text()
-    return text
-
-
-def extract_text_from_docx(file):
-    """Extract text from a DOCX file."""
-    doc = docx.Document(file)
-    return "\n".join([paragraph.text for paragraph in doc.paragraphs])
-
-
-def save_metadata_to_json(data, file_path='metadata.json'):
-    """Save extracted data to a JSON file."""
-    with open(file_path, 'w') as json_file:
-        json.dump(data, json_file, indent=4)
-
 
 
 def read_resume(resume_file):
@@ -426,66 +403,5 @@ def read_transcription(file):
 if __name__ == "__main__":
     app.run(debug=True)
 
-# s3 storage functions
-
-def upload_resume_to_cloud(file, file_name, resume_id):
-    s3 = boto3.client(
-        's3',
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_REGION
-    )
-
-    # Generate a unique file name with the resume_id
-    stored_file_name = f"{resume_id}-{file_name}"
-
-    # Upload the file to S3
-    s3.upload_fileobj(
-        file,
-        settings.AWS_STORAGE_BUCKET_NAME,
-        stored_file_name,
-        ExtraArgs={'ContentType': file.content_type}
-    )
-
-    return stored_file_name
 
 
-def fetch_resume_from_cloud(resume_id):
-    s3 = boto3.client(
-        's3',
-        aws_access_key_id=settings.AWS_ACCESS_KEY_ID,
-        aws_secret_access_key=settings.AWS_SECRET_ACCESS_KEY,
-        region_name=settings.AWS_REGION
-    )
-
-    # Construct the file name based on the resume_id
-    stored_file_name = f"{resume_id}"  # Since resume_id is a UUID, we don't need the timestamp part
-
-    try:
-        # Fetch the file from S3
-        file_obj = s3.get_object(
-            Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-            Key=stored_file_name
-        )
-
-        # Get the file content and the content type
-        file_content = file_obj['Body'].read()
-        content_type = file_obj['ContentType']
-
-        # Determine file type based on content type or file extension
-        if content_type == 'application/pdf' or stored_file_name.lower().endswith('.pdf'):
-            # If PDF, extract text using PyPDF2
-            resume_text = extract_text_from_pdf(file_content)
-        elif content_type == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' or stored_file_name.lower().endswith('.docx'):
-            # If DOCX, extract text using python-docx
-            resume_text = extract_text_from_docx(file_content)
-        elif content_type == 'text/plain' or stored_file_name.lower().endswith('.txt'):
-            # If TXT, just decode the content as text
-            resume_text = file_content.decode('utf-8')
-        else:
-            raise Exception(f"Unsupported file type: {content_type}")
-
-        return resume_text
-
-    except Exception as e:
-        raise Exception(f"Error fetching resume from cloud: {str(e)}")

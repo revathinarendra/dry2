@@ -1,27 +1,28 @@
+import uuid
 from django.db import models
 from accounts.models import Account
 
 # Create your models here.
 class Job(models.Model):
-
     company_name = models.ForeignKey(
-        Account,  max_length=255,
-        on_delete=models.CASCADE,  
-        related_name="jobs"  
+        Account, max_length=255,
+        on_delete=models.CASCADE,
+        related_name="jobs"
     )
     role = models.CharField(max_length=200)
     skills = models.TextField()
     project_experience = models.CharField(max_length=255)
     other_details = models.TextField()
-    job_description = models.TextField()
-    evaluation_criteria = models.TextField()
-    location = models.CharField(max_length=255)
+    job_description = models.TextField(null=True, blank=True)  # Allow null and blank
+    evaluation_criteria = models.TextField(null=True, blank=True)  # Allow null and blank
+    location = models.CharField(max_length=255, default="Default Location")
 
     def __str__(self):
-        return self.pk
+        return str(self.pk)
+
     
 class Profile(models.Model):
-    resume_id = models.CharField(max_length=200)#UUID generated along with name
+    resume_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
     name = models.CharField(max_length=255)
     mobile = models.CharField(max_length=15,null=True)
     email = models.EmailField(max_length=200,null=True)
@@ -29,7 +30,7 @@ class Profile(models.Model):
     resume_text = models.TextField()
 
     def __str__(self):
-        return self.pk
+        return str(self.pk)
 
 class Recruitment(models.Model):
     job_id = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='recruitments')
