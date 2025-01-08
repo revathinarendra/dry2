@@ -1,24 +1,35 @@
 import uuid
 from django.db import models
-from accounts.models import Account
 
-# Create your models here.
+
+
+#Create your models here.
+
 class Job(models.Model):
-    company_name = models.ForeignKey(
-        Account, max_length=255,
-        on_delete=models.CASCADE,
-        related_name="jobs"
-    )
+    STATUS_CHOICES = [
+        ('active', 'Active'),
+        ('inactive', 'Inactive'),
+    ]
+
+    job_company_name = models.CharField(max_length=255,default="Glint AI")
     role = models.CharField(max_length=200)
     skills = models.TextField()
     project_experience = models.CharField(max_length=255)
     other_details = models.TextField()
-    job_description = models.TextField(null=True, blank=True)  # Allow null and blank
-    evaluation_criteria = models.TextField(null=True, blank=True)  # Allow null and blank
+    job_description = models.TextField(null=True, blank=True)
+    evaluation_criteria = models.TextField(null=True, blank=True)
     location = models.CharField(max_length=255, default="Default Location")
+    job_status = models.CharField(
+        max_length=10,
+        choices=STATUS_CHOICES,
+        default='active'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return str(self.pk)
+        return f"Job {self.pk} - {self.role} ({self.get_job_status_display()})"
+  
 
     
 class Profile(models.Model):

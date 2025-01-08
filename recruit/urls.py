@@ -1,6 +1,6 @@
 
 from django.urls import path
-from .views import FetchResumeView, JobCreateView, JobDetailView, JobUpdateView, ProfileDetailView, UploadResumeView
+from .views import FetchResumeView, JobCreateView, JobDetailView, JobUpdateView, ProfileDetailView, ProfileListView, UploadResumeView
 
 urlpatterns = [
     path('jobs/create/', JobCreateView.as_view(), name='job-create'),
@@ -11,5 +11,6 @@ urlpatterns = [
     path('profile/', UploadResumeView.as_view(), name='get_resume'),
     path('profile/resume/<str:encrypted_profile_id>/', FetchResumeView.as_view(), name='fetch_resume'),
     path('profile/<str:profile_id>/', ProfileDetailView.as_view(), name='profile_detail'),
+    path('job/find_profile/', ProfileListView.as_view(), name='find_profile'),
     
 ]

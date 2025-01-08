@@ -1,7 +1,6 @@
 
 import uuid
 from flask import Flask, render_template, request, jsonify
-import json
 import google.generativeai as genai
 import time
 import os
@@ -12,8 +11,6 @@ import sqlite3
 from django.conf import settings
 import docx
 import PyPDF2
-from PyPDF2 import PdfReader
-import boto3
 
 app = Flask(__name__)
 # Configure Google Generative AI API

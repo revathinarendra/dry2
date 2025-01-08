@@ -3,7 +3,6 @@ from rest_framework.response import Response
 from rest_framework import status
 from .models import Account
 from .serializers import AccountSerializer, LoginSerializer,UserProfileSerializer
-from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import authenticate
 from rest_framework.decorators import api_view
@@ -18,10 +17,10 @@ from utils.encryption import encrypt_id, decrypt_id
 def register(request):
     data = request.data
     user_serializer = AccountSerializer(data=data)
-    print(user_serializer.data)
 
+    # Validate the data first
     if user_serializer.is_valid():
-        # Check if user with the same email already exists
+        # Check if a user with the same email already exists
         if not Account.objects.filter(email=data['email']).exists():
             user = user_serializer.save()
             # Set the password field to a hashed value
@@ -33,8 +32,8 @@ def register(request):
         else:
             return Response({'error': 'User already exists'}, status=status.HTTP_400_BAD_REQUEST)
     else:
+        # Return validation errors
         return Response(user_serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 @api_view(['GET'])

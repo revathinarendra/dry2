@@ -1,9 +1,7 @@
-import PyPDF2
-import docx
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from geminai import  fetch_resume_from_cloud, generate_evaluation_criteria, generate_job_description, read_resume, read_resume_type, upload_resume_to_cloud
+from geminai import   generate_evaluation_criteria, generate_job_description, read_resume, read_resume_type, upload_resume_to_cloud
 from .serializers import JobSerializer, ProfileSerializer
 from .models import Job,Profile
 from .functions import generate_uuid
@@ -39,7 +37,7 @@ class JobCreateView(APIView):
                     # Generate job description and evaluation criteria
                     job_description = generate_job_description({
                         "role": job.role,
-                        "company_name": job.company_name,
+                        "job_company_name": job.job_company_name,
                         "skills": job.skills,
                         "project_experience": job.project_experience,
                         "other_details": job.other_details
@@ -47,7 +45,7 @@ class JobCreateView(APIView):
 
                     evaluation_criteria = generate_evaluation_criteria({
                         "role": job.role,
-                        "company_name": job.company_name,
+                        "job_company_name": job.job_company_name,
                         "skills": job.skills,
                         "project_experience": job.project_experience,
                         "other_details": job.other_details
@@ -90,8 +88,16 @@ class JobUpdateView(APIView):
         serializer = JobSerializer(job, data=request.data, partial=True)
         if serializer.is_valid():
             updated_job = serializer.save()
+            # Check if 'linkedin_saved' is in the request data
+            linkedin_saved = request.data.get('linkedin_saved')
+            if linkedin_saved is not None:
+                # Update the job instance with the LinkedIn saved status
+                # job.linkedin_saved = linkedin_saved
+                # job.save()
+                updated_job = serializer.save()
             return Response({
                 "message": "Job updated successfully",
+                "linkedin_saved": linkedin_saved,
                 "job": JobSerializer(updated_job).data
             }, status=status.HTTP_200_OK)
 
@@ -99,7 +105,6 @@ class JobUpdateView(APIView):
 
 class JobDetailView(ListAPIView):
     serializer_class = JobSerializer
-    pagination_class = JobPagination
 
     def get_queryset(self):
         return Job.objects.all().order_by('-id')  # Default ordering by ID descending
@@ -113,15 +118,15 @@ class JobDetailView(ListAPIView):
             else:
                 queryset = self.get_queryset()
 
-            # Apply pagination
-            page = self.paginate_queryset(queryset)
-            if page is not None:
-                serializer = self.get_serializer(page, many=True)
-                return self.get_paginated_response(serializer.data)
-
-            # If no pagination is applied
+            # Serialize the queryset
             serializer = self.get_serializer(queryset, many=True)
-            return Response(serializer.data, status=status.HTTP_200_OK)
+            data = serializer.data
+
+            # Add encrypted ID to each job in the response
+            for job in data:
+                job['encrypted_id'] = encrypt_id(job['id'])
+
+            return Response(data, status=status.HTTP_200_OK)
         except Job.DoesNotExist:
             return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
@@ -201,45 +206,14 @@ class UploadResumeView(APIView):
                 return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
         else:
             profiles = Profile.objects.all()
-            paginator = self.pagination_class()
-            page = paginator.paginate_queryset(profiles, request)
-            if page is not None:
-                serializer = ProfileSerializer(page, many=True)
-                return paginator.get_paginated_response(serializer.data)
+            # paginator = self.pagination_class()
+            # page = paginator.paginate_queryset(profiles, request)
+            # if page is not None:
+            #     serializer = ProfileSerializer(page, many=True)
+            #     return paginator.get_paginated_response(serializer.data)
 
             serializer = ProfileSerializer(profiles, many=True)
             return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-
-
-# class FetchResumeView(APIView):
-#     def get(self, request, encrypted_profile_id, *args, **kwargs):
-#         try:
-#             # Decrypt the profile ID
-#             decrypted_profile_id = decrypt_id(encrypted_profile_id)
-#             profile = Profile.objects.get(id=decrypted_profile_id)
-#         except Exception as e:
-#             return Response({"error": "Invalid or malformed profile ID"}, 
-#                             status=status.HTTP_400_BAD_REQUEST)
-
-#         # Fetch the profile using the decrypted profile ID
-#         try:
-#             profile = Profile.objects.get(id=decrypted_profile_id)
-#         except Profile.DoesNotExist:
-#             return Response({"error": "Profile not found"}, 
-#                             status=status.HTTP_404_NOT_FOUND)
-
-#         # Fetch the resume content from the cloud
-#         resume_content = fetch_resume_from_cloud(profile.resume_id)
-
-#         return Response({
-#             "resume_id": profile.resume_id,
-#             "name": profile.name,
-#             "role": profile.role,
-#             "resume_text": resume_content  
-#         }, status=status.HTTP_200_OK)
-
 
 
 class FetchResumeView(APIView):
@@ -283,3 +257,54 @@ class ProfileDetailView(APIView):
         # Serialize the profile data
         serializer = ProfileSerializer(profile)
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class ProfileListView(APIView):
+    """
+    View to list all profiles or retrieve a specific profile by resume_id.
+    """
+
+    def get(self, request, *args, **kwargs):
+        resume_id = request.query_params.get('resume_id', None)  # Get resume_id from query params
+        if resume_id:
+            try:
+                profile = Profile.objects.get(resume_id=resume_id)
+                serializer = ProfileSerializer(profile)
+                data = serializer.data
+                # Add default values
+                data['status'] = "active"
+                data['percentage_matching'] = "50%"
+                return Response(data, status=status.HTTP_200_OK)
+            except Profile.DoesNotExist:
+                return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+        else:
+            profiles = Profile.objects.all()
+            serializer = ProfileSerializer(profiles, many=True)
+            data = serializer.data
+            # Add default values to each profile in the list
+            for profile_data in data:
+                profile_data['status'] = "active"
+                profile_data['percentage_matching'] = "50%"
+            return Response(data, status=status.HTTP_200_OK)
+
+ 
+
+    # def get(self, request, *args, **kwargs):
+    #     resume_id = request.query_params.get('resume_id', None)  # Get resume_id from query params
+    #     if resume_id:
+    #         try:
+    #             profile = Profile.objects.get(resume_id=resume_id)
+    #             serializer = ProfileSerializer(profile)
+    #             return Response(serializer.data, status=status.HTTP_200_OK)
+    #         except Profile.DoesNotExist:
+    #             return Response({"error": "Profile not found"}, status=status.HTTP_404_NOT_FOUND)
+    #     else:
+    #         profiles = Profile.objects.all()
+    #         # paginator = self.pagination_class()  # Instantiate the JobPagination class
+    #         # page = paginator.paginate_queryset(profiles, request, view=self)
+    #         # if page is not None:
+    #         #     serializer = ProfileSerializer(page, many=True)
+    #         #     return paginator.get_paginated_response(serializer.data)
+
+    #         serializer = ProfileSerializer(profiles, many=True)
+    #         return Response(serializer.data, status=status.HTTP_200_OK)
