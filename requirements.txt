@@ -35,3 +35,4 @@ chromadb
 flask
 cryptography
 boto3
+whitenoise==6.2.0
