@@ -4,7 +4,10 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenVerifyView,
 from django.conf import settings
 from django.conf.urls.static import static
 
+from dry import views
+
 urlpatterns = [
+    path('', views.home, name='home'),
     path('admin/', admin.site.urls),
     path('api/', include('accounts.urls')),
     path('api/', include('recruit.urls')),
