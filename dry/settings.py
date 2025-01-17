@@ -172,8 +172,7 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 CORS_ALLOWED_ORIGINS = [
-    'https://nucleux-puce.vercel.app',
-    'https://nucleux.vercel.app',
+   
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://44.204.37.246:3000',

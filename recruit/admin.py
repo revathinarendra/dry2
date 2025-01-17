@@ -15,7 +15,7 @@ class ProfileAdmin(admin.ModelAdmin):
 
 @admin.register(Recruitment)
 class RecruitmentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'job_id', 'profile_id', 'status', 'matching_percentage')
+    list_display = ('id', 'job_id', 'profile_id', 'status', 'matching_percentage','interview_time','interview_link')
     search_fields = ('status', 'job_id__company_name', 'profile_id__name')
     list_filter = ('status', 'job_id', 'profile_id')
     raw_id_fields = ('job_id', 'profile_id')

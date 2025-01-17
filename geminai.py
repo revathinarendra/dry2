@@ -160,3 +160,16 @@ def fetch_resume_from_cloud(resume_id):
 
     except Exception as e:
         raise Exception(f"Error fetching resume from cloud: {str(e)}")
+# def decrypt_job_id(encrypted_id):
+#     # Check if encrypted_id is not None and starts with 'job-'
+#     print(f"Received encrypted_id: {encrypted_id}") 
+#     if encrypted_id and encrypted_id.startswith('job-'):
+#         try:
+#             # Extract the numeric part and convert it to an integer
+#             job_id = int(encrypted_id[4:])  # Skip 'job-' prefix and convert the rest to integer
+#             return job_id
+#         except ValueError:
+#             # If the conversion fails, return None or raise an error
+#             return None
+#     return None
+

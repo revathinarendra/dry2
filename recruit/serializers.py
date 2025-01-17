@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from utils.encryption import encrypt_id
-from .models import Job,Profile
+from .models import Job,Profile, Recruitment
 import asyncio
 from rest_framework import serializers
 from .models import Job
@@ -9,16 +9,20 @@ from geminai import generate_job_description, generate_evaluation_criteria
 
 
 class JobSerializer(serializers.ModelSerializer):
+    encrypted_id = serializers.SerializerMethodField()
+    decrypted_id = serializers.IntegerField(source="id", read_only=True)
     job_description = serializers.CharField(allow_blank=True, required=False)
     evaluation_criteria = serializers.CharField(allow_blank=True, required=False)
     
     class Meta:
         model = Job
         fields = [
-             'id','job_company_name','role', 'skills', 'project_experience',
+             'encrypted_id','decrypted_id','job_company_name','role', 'skills', 'project_experience',
             'other_details', 'job_description', 'evaluation_criteria', 'location','job_status','created_at','updated_at'
         ]
-    
+    def get_encrypted_id(self, obj):
+        # Generate the encrypted ID 
+        return f"job-{obj.id:04d}"
     async def async_generate_details(self, job_company_name, role, skills, project_experience, other_details):
         try:
             # Generate job description using the helper function
@@ -75,13 +79,34 @@ class JobSerializer(serializers.ModelSerializer):
         return instance
 
 class ProfileSerializer(serializers.ModelSerializer):
-    encrypted_profile_id = serializers.SerializerMethodField()
+    encrypted_profile_id = serializers.IntegerField(source="id", read_only=True)  
     class Meta:
         model = Profile
-        fields = ['encrypted_profile_id','resume_id', 'name', 'mobile', 'email', 'role', 'resume_text',]
+        fields = ['id','encrypted_profile_id','resume_id', 'name', 'mobile', 'email', 'role', 'resume_text',]
         read_only_fields = ['resume_id']  # UUID is generated automatically
-    def get_encrypted_profile_id(self, obj):
-        """
-        Return the encrypted profile ID.
-        """
-        return encrypt_id(obj.id)
+
+
+class RecruitmentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recruitment
+        fields = [
+            'id',
+            'job_id',
+            'profile_id',
+            'status',
+            'questions',
+            'transcript',
+            'interview_feedback',
+            'matching_percentage',
+            'interview_time',
+            'interview_link',
+        ]
+
+    def create(self, validated_data):
+        # Hardcode default values if they are not provided
+        validated_data.setdefault('status', "In Progress")
+        validated_data.setdefault('matching_percentage', "100%")
+        validated_data.setdefault('interview_time', "not yet scheduled")
+
+        # Save the instance with the modified data
+        return super().create(validated_data)

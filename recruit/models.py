@@ -46,12 +46,14 @@ class Profile(models.Model):
 class Recruitment(models.Model):
     job_id = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='recruitments')
     profile_id = models.ForeignKey(Profile, on_delete=models.CASCADE, related_name='recruitment_profiles')
-    status = models.CharField(max_length=200)
-    questions = models.TextField(null=True)
+    status = models.CharField(max_length=200,null=True, blank=True)
+    questions = models.TextField(null=True,blank=True)
     transcript = models.TextField(null=True)
-    interview_feedback = models.TextField(null=True)
-    matching_percentage = models.CharField(max_length=5,null=True)
+    interview_feedback = models.TextField(null=True,blank=True)
+    matching_percentage = models.CharField(max_length=5,null=True,blank=True)
+    interview_time = models.CharField(null =True,blank=True)
+    interview_link = models.CharField(null=True,blank=True)
 
     def __str__(self):
-        return self.pk
+        return str(self.pk)
 
