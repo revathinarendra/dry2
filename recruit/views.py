@@ -1,7 +1,7 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from geminai import generate_evaluation_criteria, generate_interview_questions, generate_job_description, read_resume, read_resume_type, upload_resume_to_cloud
+from geminai import generate_evaluation_criteria, generate_interview_questions, generate_job_description, read_resume, read_resume_type, read_transcription, upload_resume_to_cloud
 from .serializers import JobSerializer, ProfileSerializer, RecruitmentSerializer
 from .models import Job,Profile, Recruitment
 from .functions import generate_uuid
@@ -11,8 +11,9 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.generics import ListAPIView
 from io import BytesIO
 from django.utils.timezone import now
-
-
+from rest_framework.parsers import MultiPartParser, FormParser
+import google.generativeai as genai
+gemini_llm = genai.GenerativeModel("gemini-1.5-flash")
 class JobPagination(PageNumberPagination):
     page_size = 20  # Number of records per page
     page_size_query_param = 'page_size'  # Allow clients to set the page size
@@ -524,5 +525,54 @@ class InterviewQuestionView(APIView):
 
         except Recruitment.DoesNotExist:
             return Response({"error": "Recruitment not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+# generated transcript and feedback with file
+class GenerateTranscriptView(APIView):
+    parser_classes = (MultiPartParser, FormParser)
+
+    def put(self, request, id, *args, **kwargs):
+        file = request.FILES.get('file')
+
+        if not file:
+            return Response({"error": "No file uploaded."}, status=status.HTTP_400_BAD_REQUEST)
+
+        # Validate and extract text from the file
+        transcript_text = read_transcription(file)
+        if not transcript_text:
+            return Response({"error": "Invalid file type or unable to extract text."}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            # Fetch the recruitment object using the id from the URL
+            recruitment = Recruitment.objects.get(id=id)
+
+            # Get candidate name and company from related models
+            candidate_name = recruitment.profile_id.name
+            company_name = recruitment.job_id.job_company_name
+
+            # Save transcript to the model
+            recruitment.transcript = transcript_text
+
+            # Generate LLM evaluation
+            prompt = f"""
+            Evaluate the candidate {candidate_name}'s performance in the interview based on the following transcription.
+            Assess the candidate on areas such as communication, technical skills, problem-solving, and role-specific knowledge.
+            Provide a profile summary and determine if the candidate is suitable for the role or not.
+
+            Transcription:
+            {transcript_text}
+            """
+            evaluation = gemini_llm.generate_content(prompt).text
+
+            # Save feedback to the model
+            recruitment.interview_feedback = evaluation
+            recruitment.save()
+
+            # Serialize and return the updated object
+            serializer = RecruitmentSerializer(recruitment)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Recruitment.DoesNotExist:
+            return Response({"error": "Recruitment object not found."}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

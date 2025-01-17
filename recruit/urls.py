@@ -1,6 +1,6 @@
 
 from django.urls import path
-from .views import FetchResumeView, InterviewCandidatesView, InterviewFeedbackView, InterviewQuestionView, InterviewQuestionsView, JobCreateView, JobDetailView, JobProfileDetailsView, JobUpdateView, ProfileDetailView, ProfileListView, UpdateInterviewTimeView, UploadResumeView
+from .views import FetchResumeView, GenerateTranscriptView, InterviewCandidatesView, InterviewFeedbackView, InterviewQuestionView, InterviewQuestionsView, JobCreateView, JobDetailView, JobProfileDetailsView, JobUpdateView, ProfileDetailView, ProfileListView, UpdateInterviewTimeView, UploadResumeView
 
 urlpatterns = [
     path('jobs/create/', JobCreateView.as_view(), name='job-create'),
@@ -18,5 +18,6 @@ urlpatterns = [
     path('interview_feedback/', InterviewFeedbackView.as_view(), name='interview_feedback'),
     path('interview_questions/', InterviewQuestionsView.as_view(), name='interview_questions'),
     path('generate_interview_questions/<int:id>/', InterviewQuestionView.as_view(), name='generate_interview_questions'),
-    
+    path('generate_transcript/<int:id>/', GenerateTranscriptView.as_view(), name='generate_transcript'),
+
 ]

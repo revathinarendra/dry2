@@ -186,3 +186,16 @@ def generate_interview_questions(job_description, evaluation_criteria, resume_te
     """
     return call_gemini(prompt)
 
+# Function to read transcription text
+def read_transcription(file):
+    if file.name.lower().endswith('.txt'):
+        return file.read().decode('utf-8')
+    elif file.name.lower().endswith('.pdf'):
+        reader = PyPDF2.PdfReader(file)
+        return "".join(page.extract_text() for page in reader.pages)
+    elif file.name.lower().endswith('.docx'):
+        doc = docx.Document(file)
+        return "\n".join([para.text for para in doc.paragraphs])
+    return ""
+
+
