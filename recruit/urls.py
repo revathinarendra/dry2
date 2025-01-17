@@ -16,7 +16,7 @@ urlpatterns = [
     path('interview_schedule/<int:id>/', UpdateInterviewTimeView.as_view(), name='update_interview_time'),
     path('interview_candidates/', InterviewCandidatesView.as_view(), name='interview_candidates'),
     path('interview_feedback/', InterviewFeedbackView.as_view(), name='interview_feedback'),
-    path('interview_questions/', InterviewQuestionsView.as_view(), name='interview_questions'),
+    path('interview_questions/<int:id>/', InterviewQuestionsView.as_view(), name='interview_questions'),
     path('generate_interview_questions/<int:id>/', InterviewQuestionView.as_view(), name='generate_interview_questions'),
     path('generate_transcript/<int:id>/', GenerateTranscriptView.as_view(), name='generate_transcript'),
 

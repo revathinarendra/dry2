@@ -402,8 +402,10 @@ class JobProfileDetailsView(APIView):
 
 class InterviewCandidatesView(APIView):
     def get(self, request):
-        # Filter Recruitment records with present or future interview_time
-        recruitments = Recruitment.objects.filter(interview_time__gte=now())
+        # Filter Recruitment records with present or future interview_time and exclude invalid cases
+        recruitments = Recruitment.objects.filter(
+            interview_time__gte=now()
+        ).exclude(interview_time__isnull=True).exclude(interview_time="not yet scheduled")
 
         data = []
         for recruitment in recruitments:
@@ -428,7 +430,12 @@ class InterviewCandidatesView(APIView):
                     status=status.HTTP_404_NOT_FOUND
                 )
 
+        # Check if data is empty
+        if not data:
+            return Response({"message": "No candidates available for interviews."}, status=status.HTTP_200_OK)
+
         return Response(data, status=status.HTTP_200_OK)
+
 # interview feedback view for get request
 
 class InterviewFeedbackView(APIView):
@@ -463,34 +470,35 @@ class InterviewFeedbackView(APIView):
 # interview questions get
 
 class InterviewQuestionsView(APIView):
-    def get(self, request):
-        # Fetch Recruitment records where interview_questions is present
-        recruitments_with_questions = Recruitment.objects.exclude(questions__isnull=True).exclude(questions__exact='')
+    def get(self, request, id):
+        try:
+            # Fetch the specific Recruitment record by ID
+            recruitment = Recruitment.objects.get(id=id)
 
-        if recruitments_with_questions.exists():
-            data = []
-            for recruitment in recruitments_with_questions:
-                try:
-                    # Fetch the related Profile using profile_id
-                    profile = recruitment.profile_id
-                    profile_data = ProfileSerializer(profile).data
+            # Check if questions are present
+            if recruitment.questions:
+                # Fetch the related Profile using profile_id
+                profile = recruitment.profile_id
+                profile_data = ProfileSerializer(profile).data
 
-                    # Add job_id and recruitment data
-                    data.append({
-                        "profile": profile_data,
-                        "job_id": recruitment.job_id.id,  # Include job ID
-                        "recruitment": RecruitmentSerializer(recruitment).data,
-                    })
-                except Profile.DoesNotExist:
-                    return Response(
-                        {"error": f"Profile with ID {recruitment.profile_id_id} does not exist."},
-                        status=status.HTTP_404_NOT_FOUND
-                    )
+                # Prepare response data
+                data = {
+                    "profile": profile_data,
+                    "job_id": recruitment.job_id.id,  # Include job ID
+                    "recruitment": RecruitmentSerializer(recruitment).data,
+                }
+                return Response(data, status=status.HTTP_200_OK)
+            else:
+                # If no questions are present, return 204 with a message
+                return Response({"message": "No interview questions found for this recruitment."}, status=status.HTTP_204_NO_CONTENT)
 
-            return Response(data, status=status.HTTP_200_OK)
-        else:
-            # If no interview questions are found, return 201 with a message
-            return Response({"message": "No interview questions found."}, status=status.HTTP_201_CREATED)
+        except Recruitment.DoesNotExist:
+            # If the recruitment record is not found
+            return Response(
+                {"error": f"Recruitment with ID {id} does not exist."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
 
 class InterviewQuestionView(APIView):
     def put(self, request, id):
