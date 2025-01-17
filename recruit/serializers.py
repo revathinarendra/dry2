@@ -4,7 +4,7 @@ from .models import Job,Profile, Recruitment
 import asyncio
 from rest_framework import serializers
 from .models import Job
-from geminai import generate_job_description, generate_evaluation_criteria
+from geminai import generate_interview_questions, generate_job_description, generate_evaluation_criteria
 
 
 
@@ -78,12 +78,7 @@ class JobSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-class ProfileSerializer(serializers.ModelSerializer):
-    encrypted_profile_id = serializers.IntegerField(source="id", read_only=True)  
-    class Meta:
-        model = Profile
-        fields = ['id','encrypted_profile_id','resume_id', 'name', 'mobile', 'email', 'role', 'resume_text',]
-        read_only_fields = ['resume_id']  # UUID is generated automatically
+
 
 
 class RecruitmentSerializer(serializers.ModelSerializer):
@@ -110,3 +105,35 @@ class RecruitmentSerializer(serializers.ModelSerializer):
 
         # Save the instance with the modified data
         return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        # Check if the profile has been updated to generate new interview questions
+        resume_text = validated_data.get('profile_id').resume_text if validated_data.get('profile_id') else instance.profile_id.resume_text
+        job_description = instance.job_id.description
+        evaluation_criteria = instance.job_id.evaluation_criteria
+
+        # Generate interview questions based on job description, evaluation criteria, and resume text
+        questions = generate_interview_questions(job_description, evaluation_criteria, resume_text)
+        validated_data['questions'] = questions  # Set the generated questions in the validated data
+
+        # Call the parent update method to update the instance
+        return super().update(instance, validated_data)
+
+class ProfileSerializer(serializers.ModelSerializer):
+    encrypted_profile_id = serializers.IntegerField(source="id", read_only=True)
+    recruitment_profiles = RecruitmentSerializer(many=True, read_only=True)  # Include recruitment details
+
+    class Meta:
+        model = Profile
+        fields = [
+            'id',
+            'encrypted_profile_id',
+            'resume_id',
+            'name',
+            'mobile',
+            'email',
+            'role',
+            'resume_text',
+            'recruitment_profiles',  
+        ]
+        read_only_fields = ['resume_id']

@@ -1,7 +1,7 @@
 from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from geminai import generate_evaluation_criteria, generate_job_description, read_resume, read_resume_type, upload_resume_to_cloud
+from geminai import generate_evaluation_criteria, generate_interview_questions, generate_job_description, read_resume, read_resume_type, upload_resume_to_cloud
 from .serializers import JobSerializer, ProfileSerializer, RecruitmentSerializer
 from .models import Job,Profile, Recruitment
 from .functions import generate_uuid
@@ -10,6 +10,8 @@ from django.db import transaction
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.generics import ListAPIView
 from io import BytesIO
+from django.utils.timezone import now
+
 
 class JobPagination(PageNumberPagination):
     page_size = 20  # Number of records per page
@@ -362,7 +364,7 @@ class ProfileListView(APIView):
                 profile_data['percentage_matching'] = "50%"
             return Response(data, status=status.HTTP_200_OK)
 
- 
+
 
 class JobProfileDetailsView(APIView):
     def get(self, request, job_id):
@@ -381,18 +383,146 @@ class JobProfileDetailsView(APIView):
             # Serialize job details
             job_data = JobSerializer(job).data
 
-            # Fetch profiles related to recruitment records
-            profiles = Profile.objects.filter(id__in=recruitment_records.values_list('profile_id', flat=True)).values()
+            # Fetch profiles related to recruitment records and include recruitment details
+            profiles = Profile.objects.filter(id__in=recruitment_records.values_list('profile_id', flat=True))
+            profiles_data = ProfileSerializer(profiles, many=True).data
 
             # Prepare the response data
             response_data = {
                 "job_details": job_data,
-                "profiles": profiles,
-                "recruitment_records": RecruitmentSerializer(recruitment_records, many=True).data,
+                "profiles": profiles_data,
             }
 
             return Response(response_data, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-    
+#Interview schedule details
+
+class InterviewCandidatesView(APIView):
+    def get(self, request):
+        # Filter Recruitment records with present or future interview_time
+        recruitments = Recruitment.objects.filter(interview_time__gte=now())
+
+        data = []
+        for recruitment in recruitments:
+            try:
+                # Access the profile_id explicitly
+                profile_id = recruitment.profile_id_id  # Use `_id` to get the integer ID
+                profile = Profile.objects.get(id=profile_id)
+
+                # Serialize both Profile and Recruitment data
+                profile_data = ProfileSerializer(profile).data
+                recruitment_data = RecruitmentSerializer(recruitment).data
+
+                # Combine data into a single response object
+                data.append({
+                    "profile": profile_data,
+                    "recruitment": recruitment_data,
+                    "job_id": recruitment.job_id.id,  # Access job_id explicitly as an ID
+                })
+            except Profile.DoesNotExist:
+                return Response(
+                    {"error": f"Profile with ID {profile_id} does not exist."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+        return Response(data, status=status.HTTP_200_OK)
+# interview feedback view for get request
+
+class InterviewFeedbackView(APIView):
+    def get(self, request):
+        # Fetch Recruitment records where interview_feedback is present
+        recruitments_with_feedback = Recruitment.objects.exclude(interview_feedback__isnull=True).exclude(interview_feedback__exact='')
+
+        if recruitments_with_feedback.exists():
+            data = []
+            for recruitment in recruitments_with_feedback:
+                try:
+                    # Fetch the related Profile using profile_id
+                    profile = recruitment.profile_id
+                    profile_data = ProfileSerializer(profile).data
+
+                    # Add job_id and recruitment data
+                    data.append({
+                        "profile": profile_data,
+                        "job_id": recruitment.job_id.id,  # Include job ID
+                        "recruitment": RecruitmentSerializer(recruitment).data,
+                    })
+                except Profile.DoesNotExist:
+                    return Response(
+                        {"error": f"Profile with ID {recruitment.profile_id_id} does not exist."},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+            return Response(data, status=status.HTTP_200_OK)
+        else:
+            # If no feedback is found, return 201 with a message
+            return Response({"message": "No interview feedback found."}, status=status.HTTP_201_CREATED)
+# interview questions get
+
+class InterviewQuestionsView(APIView):
+    def get(self, request):
+        # Fetch Recruitment records where interview_questions is present
+        recruitments_with_questions = Recruitment.objects.exclude(questions__isnull=True).exclude(questions__exact='')
+
+        if recruitments_with_questions.exists():
+            data = []
+            for recruitment in recruitments_with_questions:
+                try:
+                    # Fetch the related Profile using profile_id
+                    profile = recruitment.profile_id
+                    profile_data = ProfileSerializer(profile).data
+
+                    # Add job_id and recruitment data
+                    data.append({
+                        "profile": profile_data,
+                        "job_id": recruitment.job_id.id,  # Include job ID
+                        "recruitment": RecruitmentSerializer(recruitment).data,
+                    })
+                except Profile.DoesNotExist:
+                    return Response(
+                        {"error": f"Profile with ID {recruitment.profile_id_id} does not exist."},
+                        status=status.HTTP_404_NOT_FOUND
+                    )
+
+            return Response(data, status=status.HTTP_200_OK)
+        else:
+            # If no interview questions are found, return 201 with a message
+            return Response({"message": "No interview questions found."}, status=status.HTTP_201_CREATED)
+
+class InterviewQuestionView(APIView):
+    def put(self, request, id):
+        try:
+            # Fetch the Recruitment instance using the provided ID
+            recruitment = Recruitment.objects.get(id=id)
+
+            # Fetch the associated job and profile details
+            job = recruitment.job_id
+            profile = recruitment.profile_id
+
+            # Validate that the required fields are present
+            if not job or not profile:
+                return Response(
+                    {"error": "Recruitment must have a valid job and profile associated."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Generate interview questions using job description, evaluation criteria, and resume text
+            job_description = job.job_description
+            evaluation_criteria = job.evaluation_criteria
+            resume_text = profile.resume_text
+            interview_questions = generate_interview_questions(job_description, evaluation_criteria, resume_text)
+
+            # Update the recruitment instance with the generated questions
+            recruitment.questions = interview_questions
+            recruitment.save()
+
+            # Serialize and return the updated recruitment instance
+            serializer = RecruitmentSerializer(recruitment)
+            return Response(serializer.data, status=status.HTTP_200_OK)
+
+        except Recruitment.DoesNotExist:
+            return Response({"error": "Recruitment not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

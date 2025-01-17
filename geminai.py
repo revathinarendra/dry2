@@ -160,16 +160,29 @@ def fetch_resume_from_cloud(resume_id):
 
     except Exception as e:
         raise Exception(f"Error fetching resume from cloud: {str(e)}")
-# def decrypt_job_id(encrypted_id):
-#     # Check if encrypted_id is not None and starts with 'job-'
-#     print(f"Received encrypted_id: {encrypted_id}") 
-#     if encrypted_id and encrypted_id.startswith('job-'):
-#         try:
-#             # Extract the numeric part and convert it to an integer
-#             job_id = int(encrypted_id[4:])  # Skip 'job-' prefix and convert the rest to integer
-#             return job_id
-#         except ValueError:
-#             # If the conversion fails, return None or raise an error
-#             return None
-#     return None
+def generate_interview_questions(job_description, evaluation_criteria, resume_text):
+    prompt = f"""
+    Create a set of interview questions based on the following job description, evaluation criteria, and the candidate's resume.
+
+    Consider the following conditions based on the role:
+
+    1. If the role is for freshers or entry-level job seekers:
+       - Provide programming questions to evaluate their coding skills, along with a few theoretical questions related to programming concepts.
+       - Ask questions about the projects listed in the resume and include any relevant follow-up questions or techniques used in those projects.
+
+    2. If the role is for senior positions or involves architecture:
+       - Include relevant programming questions, as well as questions related to system design or solution architecting.
+
+    Job Description:
+    {job_description}
+
+    Evaluation Criteria:
+    {evaluation_criteria}
+
+    Candidate Resume:
+    {resume_text}
+
+    Please provide a tailored list of interview questions that will help assess the candidate's suitability for the role, focusing on the mentioned conditions.
+    """
+    return call_gemini(prompt)
 
