@@ -389,16 +389,9 @@ class ProfileListView(APIView):
             return Response(data, status=status.HTTP_200_OK)
 
 
-
 class JobProfileDetailsView(APIView):
     def get(self, request, job_id):
         try:
-            # Fetch recruitment records for the given job_id
-            recruitment_records = Recruitment.objects.filter(job_id=job_id)
-
-            if not recruitment_records.exists():
-                return Response({"detail": "No records found for the given job ID."}, status=status.HTTP_404_NOT_FOUND)
-
             # Fetch the job details
             job = Job.objects.filter(id=job_id).first()
             if not job:
@@ -407,7 +400,10 @@ class JobProfileDetailsView(APIView):
             # Serialize job details
             job_data = JobSerializer(job).data
 
-            # Fetch profiles related to recruitment records and include recruitment details
+            # Fetch recruitment records for the given job_id
+            recruitment_records = Recruitment.objects.filter(job_id=job_id)
+
+            # Fetch profiles related to recruitment records
             profiles = Profile.objects.filter(id__in=recruitment_records.values_list('profile_id', flat=True))
             profiles_data = ProfileSerializer(profiles, many=True).data
 
@@ -418,8 +414,10 @@ class JobProfileDetailsView(APIView):
             }
 
             return Response(response_data, status=status.HTTP_200_OK)
+
         except Exception as e:
             return Response({"detail": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 #Interview schedule details
 
