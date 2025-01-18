@@ -112,33 +112,36 @@ class JobUpdateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
-
-class JobDetailView(ListAPIView):
+class JobDetailView(APIView):
     serializer_class = JobSerializer
 
-    def get_queryset(self):
-        return Job.objects.all().order_by('-id')  # Default ordering by ID descending
-
-    def list(self, request, encrypted_id=None, *args, **kwargs):
+    def get(self, request, decrypted_id, *args, **kwargs):
         try:
-            # Handle specific job details if `encrypted_id` is provided
-            if encrypted_id:
-                # Decrypt the ID
-                job_id = int(encrypted_id.split('-')[1])  # Job id as  "job-0001"
-                queryset = self.get_queryset().filter(id=job_id)
-            else:
-                # Fetch all jobs
-                queryset = self.get_queryset()
+            # Ensure decrypted_id is an integer
+            if not isinstance(decrypted_id, int):
+                raise ValueError("Invalid ID format")
 
-            # Serialize the queryset
-            serializer = self.get_serializer(queryset, many=True)
+            print(f"Fetching Job with ID: {decrypted_id}")
+        
+            # Fetch the specific job by ID
+            job = Job.objects.get(id=decrypted_id)
+            print(f"Job found: {job}")
+        
+            # Serialize the job data using the JobSerializer
+            serializer = self.serializer_class(job)
+            print(f"Serialized data: {serializer.data}")
+        
+            # Return the serialized job data
             return Response(serializer.data, status=status.HTTP_200_OK)
 
+        except ValueError:
+            return Response({"error": "Invalid ID format"}, status=status.HTTP_400_BAD_REQUEST)
         except Job.DoesNotExist:
+            print("Job not found")
             return Response({"error": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
         except Exception as e:
+            print(f"Unexpected error: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
-
 
 
 class UploadResumeView(APIView):
@@ -469,28 +472,27 @@ class InterviewFeedbackView(APIView):
             return Response({"message": "No interview feedback found."}, status=status.HTTP_201_CREATED)
 # interview questions get
 
+
 class InterviewQuestionsView(APIView):
     def get(self, request, id):
         try:
             # Fetch the specific Recruitment record by ID
             recruitment = Recruitment.objects.get(id=id)
 
-            # Check if questions are present
-            if recruitment.questions:
-                # Fetch the related Profile using profile_id
-                profile = recruitment.profile_id
-                profile_data = ProfileSerializer(profile).data
+            # Fetch the related Profile using profile_id
+            profile = recruitment.profile_id
+            profile_data = ProfileSerializer(profile).data
 
-                # Prepare response data
-                data = {
-                    "profile": profile_data,
-                    "job_id": recruitment.job_id.id,  # Include job ID
-                    "recruitment": RecruitmentSerializer(recruitment).data,
-                }
-                return Response(data, status=status.HTTP_200_OK)
-            else:
-                # If no questions are present, return 204 with a message
-                return Response({"message": "No interview questions found for this recruitment."}, status=status.HTTP_204_NO_CONTENT)
+            # Serialize the recruitment object
+            recruitment_data = RecruitmentSerializer(recruitment).data
+
+            # Prepare the final response data
+            data = {
+                "profile": profile_data,
+                "job_id": recruitment.job_id.id,  # Include job ID
+                "recruitment": recruitment_data,
+            }
+            return Response(data, status=status.HTTP_200_OK)
 
         except Recruitment.DoesNotExist:
             # If the recruitment record is not found
@@ -498,7 +500,6 @@ class InterviewQuestionsView(APIView):
                 {"error": f"Recruitment with ID {id} does not exist."},
                 status=status.HTTP_404_NOT_FOUND
             )
-
 
 class InterviewQuestionView(APIView):
     def put(self, request, id):

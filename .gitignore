@@ -6,4 +6,5 @@ data.py
 key.py
 async.py
 .vercel
-__pycache__/
+
+recruit/__pycache__

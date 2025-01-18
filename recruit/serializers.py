@@ -6,8 +6,6 @@ from rest_framework import serializers
 from .models import Job
 from geminai import generate_interview_questions, generate_job_description, generate_evaluation_criteria
 
-
-
 class JobSerializer(serializers.ModelSerializer):
     encrypted_id = serializers.SerializerMethodField()
     decrypted_id = serializers.IntegerField(source="id", read_only=True)
@@ -78,9 +76,6 @@ class JobSerializer(serializers.ModelSerializer):
         instance.save()
         return instance
 
-
-
-
 class RecruitmentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Recruitment
@@ -118,6 +113,19 @@ class RecruitmentSerializer(serializers.ModelSerializer):
 
         # Call the parent update method to update the instance
         return super().update(instance, validated_data)
+
+    def to_representation(self, instance):
+        """
+        Override to_representation to ensure the 'questions' field is replaced with
+        a custom message if no questions are available.
+        """
+        data = super().to_representation(instance)
+
+        # If questions field is empty or None, replace with the custom message
+        if not data.get('questions'):
+            data['questions'] = "No interview questions found for this recruitment."
+
+        return data
 
 class ProfileSerializer(serializers.ModelSerializer):
     encrypted_profile_id = serializers.IntegerField(source="id", read_only=True)
