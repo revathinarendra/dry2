@@ -112,6 +112,26 @@ class JobUpdateView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+
+class JobListView(APIView):
+    serializer_class = JobSerializer
+
+    def get(self, request, *args, **kwargs):
+        try:
+            # Fetch all job records
+            jobs = Job.objects.all()
+            print(f"Number of jobs found: {jobs.count()}")
+
+            # Serialize the job data
+            serializer = self.serializer_class(jobs, many=True)
+            print(f"Serialized data: {serializer.data}")
+
+            # Return the serialized job data
+            return Response(serializer.data, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(f"Unexpected error: {str(e)}")
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
 class JobDetailView(APIView):
     serializer_class = JobSerializer
 
