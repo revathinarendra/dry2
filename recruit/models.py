@@ -24,6 +24,7 @@ class Job(models.Model):
         choices=STATUS_CHOICES,
         default='active'
     )
+    linkedin_response = models.CharField(null=True,)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

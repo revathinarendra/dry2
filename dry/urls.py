@@ -34,7 +34,8 @@ from dry import views
 
 urlpatterns = [
     path('', views.home, name='home'),
-    path('admin/', admin.site.urls),
+    path('hr/admin/', admin.site.urls),
+    path('post-job/', views.PostJobToLinkedInView.as_view(), name='post_job_to_linkedin'),
 
     # API URLs
     path('api/accounts/', include('accounts.urls')),  # Include accounts API under /api/accounts/

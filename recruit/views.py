@@ -13,7 +13,49 @@ from io import BytesIO
 from django.utils.timezone import now
 from rest_framework.parsers import MultiPartParser, FormParser
 import google.generativeai as genai
+import requests
+from rest_framework.permissions import AllowAny
+
 gemini_llm = genai.GenerativeModel("gemini-1.5-flash")
+from django.http import JsonResponse
+from django.conf import settings
+
+from django.shortcuts import redirect
+
+def linkedin_auth(request):
+    auth_url = (
+        "https://www.linkedin.com/oauth/v2/authorization"
+        f"?response_type=code"
+        f"&client_id={settings.LINKEDIN_CLIENT_ID}"
+        f"&redirect_uri={settings.LINKEDIN_REDIRECT_URI}"
+        f"&scope=r_liteprofile r_emailaddress w_member_social"
+    )
+    return redirect(auth_url)
+
+
+
+def linkedin_callback(request):
+    code = request.GET.get("code")
+    if not code:
+        return JsonResponse({"error": "Authorization code not provided"}, status=400)
+
+    # Exchange the code for an access token
+    token_url = "https://www.linkedin.com/oauth/v2/accessToken"
+    payload = {
+        "grant_type": "authorization_code",
+        "code": code,
+        "redirect_uri": settings.LINKEDIN_REDIRECT_URI,
+        "client_id": settings.LINKEDIN_CLIENT_ID,
+        "client_secret": settings.LINKEDIN_CLIENT_SECRET,
+    }
+
+    response = requests.post(token_url, data=payload)
+    if response.status_code == 200:
+        access_token = response.json().get("access_token")
+        return JsonResponse({"access_token": access_token})
+    else:
+        return JsonResponse({"error": "Failed to fetch access token", "details": response.json()}, status=400)
+
 class JobPagination(PageNumberPagination):
     page_size = 20  # Number of records per page
     page_size_query_param = 'page_size'  # Allow clients to set the page size
@@ -77,7 +119,62 @@ class JobCreateView(APIView):
 
 
 
+# class JobUpdateView(APIView):
+#     def put(self, request, *args, **kwargs):
+#         try:
+#             # Extract the decrypted_id from the request data
+#             decrypted_id = request.data.get('decrypted_id')
+#             if not decrypted_id:
+#                 return Response({"message": "decrypted_id is required"}, status=status.HTTP_400_BAD_REQUEST)
+
+#             # Get the Job instance by the decrypted ID
+#             job = Job.objects.get(id=decrypted_id)
+#         except Job.DoesNotExist:
+#             return Response({"message": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
+#         except Exception as e:
+#             return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+#         # Use the JobSerializer to validate and update the job data
+#         serializer = JobSerializer(job, data=request.data, partial=True)
+#         if serializer.is_valid():
+#             updated_job = serializer.save()
+
+#             # Check if 'linkedin_saved' is in the request data
+#             linkedin_saved = request.data.get('linkedin_saved')
+#             if linkedin_saved is not None:
+#                 # Perform any additional logic if needed
+#                 pass
+
+#             return Response({
+#                 "message": "Job updated successfully",
+#                 "linkedin_saved": linkedin_saved,
+#                 "job": JobSerializer(updated_job).data
+#             }, status=status.HTTP_200_OK)
+
+#         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 class JobUpdateView(APIView):
+    """
+    API view to update job details and post to LinkedIn if linkedin_saved is true.
+    """
+
+    def get_user_sub(self, access_token):
+        """
+        Fetches the user's LinkedIn sub (unique identifier) using the LinkedIn API.
+        """
+        url = "https://api.linkedin.com/v2/userinfo"
+        try:
+            headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Content-Type": "application/json",
+            }
+            response = requests.get(url, headers=headers)
+            response.raise_for_status()  # Raise an exception for HTTP errors
+            jsonData = response.json()
+            return jsonData["sub"]
+        except requests.exceptions.RequestException as e:
+            raise Exception(f"Failed to fetch LinkedIn user sub: {str(e)}")
+
     def put(self, request, *args, **kwargs):
         try:
             # Extract the decrypted_id from the request data
@@ -86,32 +183,83 @@ class JobUpdateView(APIView):
                 return Response({"message": "decrypted_id is required"}, status=status.HTTP_400_BAD_REQUEST)
 
             # Get the Job instance by the decrypted ID
-            job = Job.objects.get(id=decrypted_id)
+            job_instance = Job.objects.get(id=decrypted_id)
         except Job.DoesNotExist:
-            return Response({"message": "Job not found"}, status=status.HTTP_404_NOT_FOUND)
-        except Exception as e:
-            return Response({"message": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"message": "Job not found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
 
-        # Use the JobSerializer to validate and update the job data
-        serializer = JobSerializer(job, data=request.data, partial=True)
+        # Deserialize the request data
+        serializer = JobSerializer(job_instance, data=request.data, partial=True)
         if serializer.is_valid():
             updated_job = serializer.save()
+            linkedin_saved = request.data.get("linkedin_saved", False)
 
-            # Check if 'linkedin_saved' is in the request data
-            linkedin_saved = request.data.get('linkedin_saved')
-            if linkedin_saved is not None:
-                # Perform any additional logic if needed
-                pass
+            if linkedin_saved:
+                try:
+                    # Retrieve access token from request header
+                    access_token = settings.LINKEDIN_ACCESS_TOKEN
+                    if not access_token:
+                        return Response({"message": "Authorization token missing"}, status=status.HTTP_401_UNAUTHORIZED)
 
+                    # Fetch the LinkedIn user sub
+                    linkedin_sub = "1B7Hm4GYYd"  
+                    # LinkedIn API payload for ugcPosts
+                    payload = {
+                        "author": f"urn:li:person:{linkedin_sub}",
+                        "lifecycleState": "PUBLISHED",
+                        "specificContent": {
+                            "com.linkedin.ugc.ShareContent": {
+                                "shareCommentary": {
+                                    "text": f"Exciting job opportunity: {updated_job.role} at {updated_job.job_company_name}!\n\n{updated_job.job_description or 'No description provided.'}\nLocation: {updated_job.location}"
+                                },
+                                "shareMediaCategory": "NONE"
+                            }
+                        },
+                        "visibility": {
+                            "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+                        }
+                    }
+
+                    # LinkedIn API endpoint and headers
+                    linkedin_api_url = "https://api.linkedin.com/v2/ugcPosts"
+                    response = requests.post(linkedin_api_url, headers={"Authorization": f"Bearer {access_token}"}, json=payload)
+
+                    if response.status_code == 201:  # Success
+                        response_data = response.json()
+                        linkedin_post_id = response_data.get("id")  # Extract the LinkedIn post ID
+
+                        # Save the LinkedIn post ID to the Job instance
+                        updated_job.linkedin_response = linkedin_post_id
+                        updated_job.save()
+
+                        return Response({
+                            "message": "Job updated successfully and posted to LinkedIn",
+                            "linkedin_response": linkedin_post_id,
+                            "job": JobSerializer(updated_job).data
+                        }, status=status.HTTP_200_OK)
+                    else:  # LinkedIn API returned an error
+                        error_message = response.json().get("message", "Unknown error")
+                        return Response({
+                            "message": f"Failed to post job details to LinkedIn: {error_message}",
+                            "job": JobSerializer(updated_job).data
+                        }, status=response.status_code)
+
+                except Exception as e:
+                    return Response({
+                        "message": f"An error occurred while posting to LinkedIn: {str(e)}",
+                        "job": JobSerializer(updated_job).data
+                    }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            # If linkedin_saved is false, return success response for job update
             return Response({
                 "message": "Job updated successfully",
-                "linkedin_saved": linkedin_saved,
                 "job": JobSerializer(updated_job).data
             }, status=status.HTTP_200_OK)
 
+        # If serializer is not valid, return errors
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-
 
 class JobListView(APIView):
     serializer_class = JobSerializer
@@ -131,6 +279,105 @@ class JobListView(APIView):
         except Exception as e:
             print(f"Unexpected error: {str(e)}")
             return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+
+
+# class PostJobToLinkedInView(APIView):
+#     permission_classes = [AllowAny]
+
+#     """
+#     API view to post job details to LinkedIn.
+#     """
+
+#     def get_user_sub(self, access_token):
+#         """
+#         Fetches the user's LinkedIn sub (unique identifier) using the LinkedIn API.
+#         """
+#         url = "https://api.linkedin.com/v2/userinfo"  # Updated to use the correct endpoint for user info
+#         try:
+#             headers = {
+#                 "Authorization": f"Bearer {access_token}",
+#                 "Content-Type": "application/json",
+#             }
+#             response = requests.get(url, headers=headers)
+#             print(f"LinkedIn API Response: {response.status_code} - {response.text}")
+#             response.raise_for_status()  # Raise an exception for HTTP errors
+#             json_data = response.json()
+#             return json_data["sub"]  # LinkedIn uses 'id' for the unique identifier
+#         except requests.exceptions.RequestException as e:
+#             raise Exception(f"Failed to fetch LinkedIn user ID: {str(e)}")
+
+#     def post(self, request, pk, *args, **kwargs):
+#         print("Request reached the post method")
+#         try:
+#             # Retrieve the job instance
+#             job_instance = Job.objects.get(pk=pk)
+#         except Job.DoesNotExist:
+#             return Response(
+#                 {"message": "Job not found."},
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         # Log all request headers to check if Authorization header is present
+#         print(f"Request Headers: {request.headers}")
+
+#         # Retrieve access token from request header
+#         access_token = settings.LINKEDIN_ACCESS_TOKEN
+
+#         if not access_token:
+#             return Response({"message": "Authorization token missing"}, status=status.HTTP_401_UNAUTHORIZED)
+
+#         # Log the token to ensure it's being passed correctly (use partial token for security)
+#         print(f"Extracted Token: {access_token[:10]}...")  # Log first 10 characters of token
+
+#         try:
+#             # Fetch the LinkedIn user ID
+#             linkedin_user_id = self.get_user_sub(access_token)
+
+#             # LinkedIn API payload for ugcPosts
+#             payload = {
+#                 "author": f"urn:li:person:{linkedin_user_id}",
+#                 "lifecycleState": "PUBLISHED",
+#                 "specificContent": {
+#                     "com.linkedin.ugc.ShareContent": {
+#                         "shareCommentary": {
+#                             "text": f"Exciting job opportunity: {job_instance.role} at {job_instance.job_company_name}!\n\n{job_instance.job_description or 'No description provided.'}\nLocation: {job_instance.location}"
+#                         },
+#                         "shareMediaCategory": "NONE"
+#                     }
+#                 },
+#                 "visibility": {
+#                     "com.linkedin.ugc.MemberNetworkVisibility": "PUBLIC"
+#                 }
+#             }
+
+#             # LinkedIn API endpoint and headers
+#             linkedin_api_url = "https://api.linkedin.com/v2/ugcPosts"
+#             headers = {
+#                 "Authorization": f"Bearer {access_token}",
+#                 "Content-Type": "application/json"
+#             }
+
+#             response = requests.post(linkedin_api_url, headers=headers, json=payload)
+
+#             if response.status_code == 201:  # Success
+#                 response_data = response.json()
+#                 return Response({
+#                     "message": "Job posted to LinkedIn successfully",
+#                     "linkedin_response": response_data
+#                 }, status=status.HTTP_200_OK)
+#             else:  # LinkedIn API returned an error
+#                 error_message = response.json().get("message", "Unknown error")
+#                 print(f"LinkedIn API Error: {response.status_code} - {response.text}")
+#                 return Response({
+#                     "message": f"Failed to post job details to LinkedIn: {error_message}",
+#                 }, status=response.status_code)
+
+#         except Exception as e:
+#             print(f"Error: {str(e)}")
+#             return Response({
+#                 "message": f"An error occurred while posting to LinkedIn: {str(e)}",
+#             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class JobDetailView(APIView):
     serializer_class = JobSerializer

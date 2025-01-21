@@ -8,3 +8,4 @@ async.py
 .vercel
 
 recruit/__pycache__
+test.py

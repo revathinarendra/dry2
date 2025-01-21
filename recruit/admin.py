@@ -3,7 +3,7 @@ from .models import Job, Profile, Recruitment
 
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    list_display = ('id', 'job_company_name', 'role', 'skills', 'project_experience','location','job_status','created_at','updated_at')
+    list_display = ('id', 'job_company_name', 'role', 'skills', 'project_experience','location','job_status','linkedin_response','created_at','updated_at')
     search_fields = ('job_company_name__job_company_name', 'role') 
     list_filter = ('job_company_name',)
 

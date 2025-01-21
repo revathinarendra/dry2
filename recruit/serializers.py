@@ -16,7 +16,7 @@ class JobSerializer(serializers.ModelSerializer):
         model = Job
         fields = [
              'encrypted_id','decrypted_id','job_company_name','role', 'skills', 'project_experience',
-            'other_details', 'job_description', 'evaluation_criteria', 'location','job_status','created_at','updated_at'
+            'other_details', 'job_description', 'evaluation_criteria', 'location','job_status','linkedin_response','created_at','updated_at'
         ]
     def get_encrypted_id(self, obj):
         # Generate the encrypted ID 

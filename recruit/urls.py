@@ -1,8 +1,10 @@
 
 from django.urls import path
-from .views import FetchResumeView, GenerateTranscriptView, InterviewCandidatesView, InterviewFeedbackView, InterviewQuestionView, InterviewQuestionsView, JobCreateView, JobDetailView, JobListView, JobProfileDetailsView, JobUpdateView, ProfileDetailView, ProfileListView, UpdateInterviewTimeView, UploadResumeView
+from .views import FetchResumeView, GenerateTranscriptView, InterviewCandidatesView, InterviewFeedbackView, InterviewQuestionView, InterviewQuestionsView, JobCreateView, JobDetailView, JobListView, JobProfileDetailsView, JobUpdateView,  ProfileDetailView, ProfileListView, UpdateInterviewTimeView, UploadResumeView, linkedin_auth, linkedin_callback
 
 urlpatterns = [
+    path('linkedin/auth', linkedin_auth, name='linkedin_auth'),
+    path('linkedin/callback', linkedin_callback, name='linkedin_callback'),
     path('jobs/create/', JobCreateView.as_view(), name='job-create'),
     path('jobs/update/<str:encrypted_id>/', JobUpdateView.as_view(), name='job-update'), 
     path('jobs/', JobListView.as_view(), name='job-list'),

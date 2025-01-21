@@ -136,6 +136,11 @@ API_KEY = os.getenv('API_KEY')
 MODEL_NAME = os.getenv('MODEL_NAME')
 CHROMA_API_TOKEN = os.getenv('CHROMA_API_TOKEN')
 HOST = os.getenv('HOST')
+
+LINKEDIN_CLIENT_ID = os.getenv('LINKEDIN_CLIENT_ID')
+LINKEDIN_CLIENT_SECRET = os.getenv('LINKEDIN_CLIENT_SECRET')
+LINKEDIN_REDIRECT_URI = os.getenv('LINKEDIN_REDIRECT_URI')
+LINKEDIN_ACCESS_TOKEN = os.getenv('LINKEDIN_ACCESS_TOKEN')
 # Password validation
 # https://docs.djangoproject.com/en/5.1/ref/settings/#auth-password-validators
 
@@ -172,6 +177,7 @@ SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
 }
 CORS_ALLOWED_ORIGINS = [
+    'http://127.0.0.1:8000',
    
     'http://localhost:3000',
     'http://127.0.0.1:3000',
