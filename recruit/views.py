@@ -204,7 +204,7 @@ class JobUpdateView(APIView):
                         return Response({"message": "Authorization token missing"}, status=status.HTTP_401_UNAUTHORIZED)
 
                     # Fetch the LinkedIn user sub
-                    linkedin_sub = "1B7Hm4GYYd"  
+                    linkedin_sub = settings.LINKEDIN_ACCESS_SUB
                     # LinkedIn API payload for ugcPosts
                     payload = {
                         "author": f"urn:li:person:{linkedin_sub}",
