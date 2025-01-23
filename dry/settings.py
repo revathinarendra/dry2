@@ -34,7 +34,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 DEBUG = True
 # DEBUG = os.environ.get('DEBUG') == 'False'
-ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1','*','44.204.37.246']
+ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1','*','100.24.53.239']
 
 
 
