@@ -243,7 +243,7 @@ class JobUpdateView(APIView):
                         error_message = response.json().get("message", "Unknown error")
                         return Response({
                             "message": f"Failed to post job details to LinkedIn: {error_message}",
-                            "job": JobSerializer(updated_job).data
+                             "job": JobSerializer(updated_job).data
                         }, status=response.status_code)
 
                 except Exception as e:
