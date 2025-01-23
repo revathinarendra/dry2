@@ -34,7 +34,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY')
 
 DEBUG = True
 # DEBUG = os.environ.get('DEBUG') == 'False'
-ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1','*','100.24.53.239']
+ALLOWED_HOSTS = ['.vercel.app', 'localhost', '127.0.0.1','*','107.21.83.136']
 
 
 
@@ -179,7 +179,7 @@ SIMPLE_JWT = {
 }
 CORS_ALLOWED_ORIGINS = [
     'http://127.0.0.1:8000',
-    'http://100.24.53.239:3000',
+    'http://107.21.83.136:3000',
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'http://44.204.37.246:3000',
